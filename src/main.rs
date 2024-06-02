@@ -34,12 +34,18 @@ fn main() {
                 Command::Exit(exit_code) => std::process::exit(exit_code),
                 Command::Echo(text) => println!("{}", text),
                 Command::Type(cmd) => match cmd.as_ref() {
-                    EXIT_CMD | ECHO_CMD | TYPE_CMD => println!("{} is a shell builtin", cmd),
+                    EXIT_CMD | ECHO_CMD | TYPE_CMD | PWD_CMD => {
+                        println!("{} is a shell builtin", cmd)
+                    }
                     cmd => match command_map.get(cmd) {
                         Some(path_src) => println!("{} is {}/{}", cmd, path_src, cmd),
                         None => println!("{} not found", cmd),
                     },
                 },
+                Command::Pwd => {
+                    let curr_dir = std::env::current_dir().unwrap();
+                    println!("{}", curr_dir.display())
+                }
                 Command::ExternalProgram {
                     executable_path,
                     args,
@@ -62,12 +68,14 @@ fn main() {
 const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
+const PWD_CMD: &str = "pwd";
 
 enum Command {
     NoInput,
     Exit(i32),
     Echo(String),
     Type(String),
+    Pwd,
     ExternalProgram {
         executable_path: String,
         args: Vec<String>,
@@ -102,6 +110,13 @@ fn parse_command(input: &str, command_map: &HashMap<String, String>) -> Result<C
         Some(TYPE_CMD) => {
             let command_name = splitted_input.collect::<Vec<&str>>().join(" ");
             Ok(Command::Type(command_name))
+        }
+        Some(PWD_CMD) => {
+            if splitted_input.next().is_some() {
+                Err(Error::ParseCommandError(PWD_CMD.to_string()))
+            } else {
+                Ok(Command::Pwd)
+            }
         }
         Some(command) => {
             // absolute path or relative path?
