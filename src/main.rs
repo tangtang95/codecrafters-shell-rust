@@ -103,19 +103,32 @@ fn parse_command(input: &str, command_map: &HashMap<String, String>) -> Result<C
             let command_name = splitted_input.collect::<Vec<&str>>().join(" ");
             Ok(Command::Type(command_name))
         }
-        Some(command) => match command_map.get(command) {
-            Some(path_src) => {
-                let executable_path = format!("{}/{}", path_src, command);
+        Some(command) => {
+            // absolute path or relative path?
+            if command.starts_with('/') {
                 let args = splitted_input
                     .map(|arg| arg.to_string())
                     .collect::<Vec<String>>();
                 Ok(Command::ExternalProgram {
-                    executable_path,
+                    executable_path: command.to_string(),
                     args,
                 })
+            } else {
+                match command_map.get(command) {
+                    Some(path_src) => {
+                        let executable_path = format!("{}/{}", path_src, command);
+                        let args = splitted_input
+                            .map(|arg| arg.to_string())
+                            .collect::<Vec<String>>();
+                        Ok(Command::ExternalProgram {
+                            executable_path,
+                            args,
+                        })
+                    }
+                    None => Err(Error::CommandNotFound(command.to_string())),
+                }
             }
-            None => Err(Error::CommandNotFound(command.to_string())),
-        },
+        }
         None => Ok(Command::NoInput),
     }
 }
