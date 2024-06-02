@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use thiserror::Error;
 
 fn main() {
+    let home_dir = std::env::var("HOME").unwrap();
     let path_env = std::env::var("PATH").unwrap();
     let path_entries = path_env.split(':').collect::<Vec<&str>>();
     let mut command_map: HashMap<String, String> = HashMap::new();
@@ -46,10 +47,13 @@ fn main() {
                     let curr_dir = std::env::current_dir().unwrap();
                     println!("{}", curr_dir.display())
                 }
-                Command::Cd(path) => match std::fs::read_dir(&path) {
-                    Ok(_) => std::env::set_current_dir(&path).unwrap(),
-                    Err(_) => println!("{}: No such file or directory", path),
-                },
+                Command::Cd(path) => {
+                    let path = if path.eq("~") { home_dir.clone() } else { path };
+                    match std::fs::read_dir(&path) {
+                        Ok(_) => std::env::set_current_dir(&path).unwrap(),
+                        Err(_) => println!("{}: No such file or directory", path),
+                    }
+                }
                 Command::ExternalProgram {
                     executable_path,
                     args,
