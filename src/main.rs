@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-#[allow(unused_imports)]
 use std::io::{self, Write};
 
 use thiserror::Error;
@@ -14,7 +13,9 @@ fn main() {
             for dir_entry in dir {
                 let dir_entry = dir_entry.unwrap();
                 let filename = dir_entry.file_name().into_string().unwrap();
-                command_map.insert(filename, path_entry.to_string());
+                if command_map.get(&filename).is_none() {
+                    command_map.insert(filename, path_entry.to_string());
+                }
             }
         }
     }
@@ -27,7 +28,7 @@ fn main() {
         let stdin = io::stdin();
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
-        match parse_command(&input) {
+        match parse_command(&input, &command_map) {
             Ok(command) => match command {
                 Command::NoInput => println!(),
                 Command::Exit(exit_code) => std::process::exit(exit_code),
@@ -39,6 +40,19 @@ fn main() {
                         None => println!("{} not found", cmd),
                     },
                 },
+                Command::ExternalProgram {
+                    executable_path,
+                    args,
+                } => {
+                    let mut program = std::process::Command::new(executable_path);
+                    match program.args(args).output() {
+                        Ok(output) => {
+                            io::stdout().write_all(&output.stdout).unwrap();
+                            io::stderr().write_all(&output.stderr).unwrap();
+                        }
+                        Err(err) => println!("{}", err),
+                    }
+                }
             },
             Err(error) => println!("{}", error),
         }
@@ -54,6 +68,10 @@ enum Command {
     Exit(i32),
     Echo(String),
     Type(String),
+    ExternalProgram {
+        executable_path: String,
+        args: Vec<String>,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -64,7 +82,7 @@ enum Error {
     ParseCommandError(String),
 }
 
-fn parse_command(input: &str) -> Result<Command, Error> {
+fn parse_command(input: &str, command_map: &HashMap<String, String>) -> Result<Command, Error> {
     let mut splitted_input = input.trim().split(' ');
     match splitted_input.next() {
         Some(EXIT_CMD) => {
@@ -85,7 +103,19 @@ fn parse_command(input: &str) -> Result<Command, Error> {
             let command_name = splitted_input.collect::<Vec<&str>>().join(" ");
             Ok(Command::Type(command_name))
         }
-        Some(command) => Err(Error::CommandNotFound(command.to_string())),
+        Some(command) => match command_map.get(command) {
+            Some(path_src) => {
+                let executable_path = format!("{}/{}", path_src, command);
+                let args = splitted_input
+                    .map(|arg| arg.to_string())
+                    .collect::<Vec<String>>();
+                Ok(Command::ExternalProgram {
+                    executable_path,
+                    args,
+                })
+            }
+            None => Err(Error::CommandNotFound(command.to_string())),
+        },
         None => Ok(Command::NoInput),
     }
 }
