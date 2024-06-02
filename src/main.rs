@@ -16,6 +16,7 @@ fn main() {
             Ok(command) => match command {
                 Command::NoInput => println!(),
                 Command::Exit(exit_code) => std::process::exit(exit_code),
+                Command::Echo(text) => println!("{}", text),
             },
             Err(error) => println!("{}", error),
         }
@@ -23,10 +24,12 @@ fn main() {
 }
 
 const EXIT_CMD: &str = "exit";
+const ECHO_CMD: &str = "echo";
 
 enum Command {
     NoInput,
     Exit(i32),
+    Echo(String)
 }
 
 #[derive(Error, Debug)]
@@ -49,7 +52,11 @@ fn parse_command(input: &str) -> Result<Command, Error> {
                 Some(_) => Err(Error::ParseCommandError(EXIT_CMD.to_string())),
                 None => Ok(Command::Exit(exit_code)),
             }
-        }
+        },
+        Some(ECHO_CMD) => {
+            let echo_text = splitted_input.collect::<Vec<&str>>().join(" ");
+            Ok(Command::Echo(echo_text.to_string()))
+        },
         Some(command) => Err(Error::CommandNotFound(command.to_string())),
         None => Ok(Command::NoInput),
     }
