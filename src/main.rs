@@ -46,6 +46,12 @@ fn main() {
                     let curr_dir = std::env::current_dir().unwrap();
                     println!("{}", curr_dir.display())
                 }
+                Command::Cd(path) => {
+                    match std::fs::read_dir(&path) {
+                        Ok(_) => std::env::set_current_dir(&path).unwrap(),
+                        Err(_) => println!("{}: {}: No such file or directory", CD_CMD, path),
+                    }
+                }
                 Command::ExternalProgram {
                     executable_path,
                     args,
@@ -69,6 +75,7 @@ const EXIT_CMD: &str = "exit";
 const ECHO_CMD: &str = "echo";
 const TYPE_CMD: &str = "type";
 const PWD_CMD: &str = "pwd";
+const CD_CMD: &str = "cd";
 
 enum Command {
     NoInput,
@@ -76,6 +83,7 @@ enum Command {
     Echo(String),
     Type(String),
     Pwd,
+    Cd(String),
     ExternalProgram {
         executable_path: String,
         args: Vec<String>,
@@ -116,6 +124,14 @@ fn parse_command(input: &str, command_map: &HashMap<String, String>) -> Result<C
                 Err(Error::ParseCommandError(PWD_CMD.to_string()))
             } else {
                 Ok(Command::Pwd)
+            }
+        }
+        Some(CD_CMD) => {
+            let path = splitted_input.next().ok_or(Error::ParseCommandError(CD_CMD.to_string()))?;
+            if splitted_input.next().is_some() {
+                Err(Error::ParseCommandError(CD_CMD.to_string()))
+            } else {
+                Ok(Command::Cd(path.to_string()))
             }
         }
         Some(command) => {
