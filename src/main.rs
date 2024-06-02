@@ -46,12 +46,10 @@ fn main() {
                     let curr_dir = std::env::current_dir().unwrap();
                     println!("{}", curr_dir.display())
                 }
-                Command::Cd(path) => {
-                    match std::fs::read_dir(&path) {
-                        Ok(_) => std::env::set_current_dir(&path).unwrap(),
-                        Err(_) => println!("{}: {}: No such file or directory", CD_CMD, path),
-                    }
-                }
+                Command::Cd(path) => match std::fs::read_dir(&path) {
+                    Ok(_) => std::env::set_current_dir(&path).unwrap(),
+                    Err(_) => println!("{}: No such file or directory", path),
+                },
                 Command::ExternalProgram {
                     executable_path,
                     args,
@@ -127,7 +125,9 @@ fn parse_command(input: &str, command_map: &HashMap<String, String>) -> Result<C
             }
         }
         Some(CD_CMD) => {
-            let path = splitted_input.next().ok_or(Error::ParseCommandError(CD_CMD.to_string()))?;
+            let path = splitted_input
+                .next()
+                .ok_or(Error::ParseCommandError(CD_CMD.to_string()))?;
             if splitted_input.next().is_some() {
                 Err(Error::ParseCommandError(CD_CMD.to_string()))
             } else {
